@@ -15,7 +15,7 @@ shapefile_co = "data/colombia_simplificado.geojson"
 gdf_vih = gpd.read_file(shapefile_vih)
 gdf_co = gpd.read_file(shapefile_co)
 
-# --- Intentar merge ---
+# --- Unir ambos GeoDataFrames ---
 try:
     gdf_co["DPTO_CCDGO"] = gdf_co["DPTO_CCDGO"].astype(str).str.zfill(2)
     gdf_vih["DANE"] = gdf_vih["DANE"].astype(str).str.zfill(2)
@@ -25,19 +25,17 @@ except Exception as e:
     print("⚠️ Advertencia en el merge:", e)
     gdf_merged = gdf_vih.copy()
 
-# --- Preparar datos para la app ---
-years = ["2009", "2010", "2011", "2012", "2009-2012"]
+# --- Lista de años disponibles ---
+years = ["2008", "2009", "2010", "2011", "2012", "2008-2012"]
 
+# --- Función para calcular métrica según el año ---
 def compute_metric(df, year):
-    if year == "2009-2012":
-        val = df["Casos"]
+    if year == "2008-2012":
+        # Sumar los casos de todos los años disponibles
+        val = df[["Ano2008", "Ano2009", "Ano2010", "Ano2011", "Ano2012"]].sum(axis=1)
     else:
         col = "Ano" + year
-        if col in df.columns:
-            val = df[col]
-        else:
-            # si no existe, devolver NaN
-            val = pd.Series([np.nan] * len(df))
+        val = df[col] if col in df.columns else pd.Series([np.nan] * len(df))
     return val
 
 gdf = gdf_merged.reset_index(drop=True)
@@ -50,14 +48,14 @@ app = Dash(__name__, suppress_callback_exceptions=True)
 server = app.server
 
 app.layout = html.Div([
-    html.H2("Dashboard georreferenciado — Taller: Casos VIH (demo)"),
+    html.H2("Dashboard georreferenciado — Casos VIH en Colombia"),
 
     html.Div([
         html.Label("Año / rango"),
         dcc.Dropdown(
             id="year-dropdown",
             options=[{"label": y, "value": y} for y in years],
-            value="2009-2012"
+            value="2008-2012"
         ),
     ], style={"width": "200px", "display": "inline-block", "verticalAlign": "top", "marginRight": "20px"}),
 
@@ -85,8 +83,8 @@ app.layout = html.Div([
             id="table",
             page_size=10,
             columns=[
-                {"name": "DPTO_CCDGO", "id": "DPTO_CCDGO"},
-                {"name": "Departamento", "id": "name"},
+                {"name": "Código DANE", "id": "DANE"},
+                {"name": "Departamento", "id": "DEPARTAMEN"},
                 {"name": "Casos", "id": "Casos"}
             ],
             style_table={"overflowX": "auto"}
@@ -105,13 +103,13 @@ app.layout = html.Div([
 )
 def update_dashboard(year, view):
     df = gdf.copy()
-    metric = compute_metric(df, year)
-    df["metric"] = metric.fillna(0)
+    df["metric"] = compute_metric(df, year).fillna(0)
 
     # KPIs
     total = int(df["metric"].sum())
     mean = float(df["metric"].mean())
-    max_depto = df.loc[df["metric"].idxmax(), "name"] if len(df) > 0 else ""
+    max_depto = df.loc[df["metric"].idxmax(), "DEPARTAMEN"] if len(df) > 0 else ""
+
     kpi_children = [
         html.Div([
             html.H5("Total de casos"),
@@ -130,7 +128,7 @@ def update_dashboard(year, view):
     ]
 
     # Tabla
-    table_df = df[["DPTO_CCDGO", "name", "metric"]].rename(columns={"metric": "Casos"}).sort_values("Casos", ascending=False).head(10)
+    table_df = df[["DANE", "DEPARTAMEN", "metric"]].rename(columns={"metric": "Casos"}).sort_values("Casos", ascending=False).head(10)
     table_data = table_df.to_dict("records")
 
     # Mapa
@@ -140,7 +138,7 @@ def update_dashboard(year, view):
             geojson=geojson,
             locations=df.index,
             color="metric",
-            hover_name="name",
+            hover_name="DEPARTAMEN",
             projection="mercator"
         )
         fig.update_geos(fitbounds="locations", visible=False)
@@ -153,7 +151,7 @@ def update_dashboard(year, view):
             lon="lon",
             lat="lat",
             size="metric",
-            hover_name="name",
+            hover_name="DEPARTAMEN",
             projection="natural earth"
         )
         fig.update_geos(fitbounds="locations", visible=False)
@@ -163,6 +161,6 @@ def update_dashboard(year, view):
     return fig, kpi_children, table_data
 
 
-# --- Run ---
 if __name__ == "__main__":
-    app.run_server(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8050)))
+    app.run_server(debug=True)
+
