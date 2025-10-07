@@ -136,12 +136,15 @@ def update_dashboard(year, view):
         fig = px.choropleth(
             df,
             geojson=geojson,
-            locations=df.index,
+            locations="DPTO_CCDGO",
+            featureidkey="properties.DPTO_CCDGO",
             color="metric",
             hover_name="DEPARTAMEN",
+            color_continuous_scale="Plasma",
             projection="mercator"
         )
         fig.update_geos(fitbounds="locations", visible=False)
+
     else:
         df_cent = df.copy()
         df_cent["lon"] = df_cent.geometry.centroid.x
@@ -156,7 +159,11 @@ def update_dashboard(year, view):
         )
         fig.update_geos(fitbounds="locations", visible=False)
 
-    fig.update_layout(margin={"r": 0, "t": 30, "l": 0, "b": 0}, title_text=f"Casos VIH - {year} - Vista: {view}")
+    fig.update_layout(
+        margin={"r": 0, "t": 30, "l": 0, "b": 0},
+        title_text=f"Casos VIH - {year} - Vista: {view}"
+    )
+
 
     return fig, kpi_children, table_data
 
