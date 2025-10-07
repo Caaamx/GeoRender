@@ -8,12 +8,12 @@ from dash import Dash, dcc, html, Input, Output, dash_table
 import plotly.express as px
 
 # --- Rutas a archivos ---
-shapefile_vih = os.path.join("VIH", "Casos_notificados_VIH_-_SIDA.shp")
-shapefile_co = os.path.join("coordenadas", "COLOMBIA", "COLOMBIA.shp")
+shapefile_vih = "data/vih.geojson"
+shapefile_co = "data/colombia_simplificado.geojson"
 
 # --- Cargar datos ---
-gdf_vih = gpd.read_file(shapefile_vih, encoding="utf-8")
-gdf_co = gpd.read_file(shapefile_co, encoding="utf-8")
+gdf_vih = gpd.read_file(shapefile_vih)
+gdf_co = gpd.read_file(shapefile_co)
 
 # --- Intentar merge ---
 try:
